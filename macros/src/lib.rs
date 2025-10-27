@@ -73,12 +73,19 @@ fn expand_dir(root: &Path, path: &Path) -> proc_macro2::TokenStream {
     let path = normalize_path(root, path);
 
     quote! {
-        include_dir::Dir::new(#path, &[ #(#child_tokens),* ])
+        include_dir::Dir::new(#path, {
+            const ENTRIES: &'static [include_dir::DirEntry<'static>] = &[ #(#child_tokens),*];
+            ENTRIES
+    })
     }
 }
 
 fn expand_file(root: &Path, path: &Path) -> proc_macro2::TokenStream {
-    let contents = read_file(path);
+    let abs = path
+        .canonicalize()
+        .unwrap_or_else(|e| panic!("failed to resolve \"{}\": {}", path.display(), e));
+
+    let contents = read_file(&abs);
 
     #[cfg(feature = "compress")]
     let contents = compress(&contents);
@@ -292,7 +299,7 @@ mod tests {
 
         let resolved = resolve_path(path, |name| match name {
             "TOP_LEVEL" => Some("$NESTED".to_string()),
-            "$NESTED" => unreachable!("Shouln't resolve recursively"),
+            "$NESTED" => unreachable!("Shouldn't resolve recursively"),
             _ => unreachable!(),
         })
         .unwrap();
