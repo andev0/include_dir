@@ -4,7 +4,7 @@ use std::{
 };
 
 #[cfg(feature = "compress")]
-use lz4_compression::decompress::decompress;
+use std::io::Read;
 
 /// A file with its contents stored in a `&'static [u8]`.
 #[derive(Clone, PartialEq, Eq)]
@@ -13,6 +13,16 @@ pub struct File<'a> {
     contents: &'a [u8],
     #[cfg(feature = "metadata")]
     metadata: Option<crate::Metadata>,
+}
+
+#[cfg(feature = "compress")]
+fn decompress(compressed_data: &[u8]) -> Result<Vec<u8>, std::io::Error> {
+    let mut decoder = flate2::read::GzDecoder::new(compressed_data);
+
+    let mut decompressed_data = Vec::new();
+    decoder.read_to_end(&mut decompressed_data)?;
+
+    Ok(decompressed_data)
 }
 
 impl<'a> File<'a> {
@@ -41,7 +51,7 @@ impl<'a> File<'a> {
     /// The file's uncompressed raw contents.
     #[cfg(feature = "compress")]
     pub fn contents(&self) -> Vec<u8> {
-        decompress(self.contents).expect("Embeded file could not be decompressed")
+        decompress(self.contents).expect("Embedded file could not be decompressed")
     }
 
     /// The file's contents interpreted as a string.
@@ -53,7 +63,10 @@ impl<'a> File<'a> {
     /// The file's uncompressed contents interpreted as a string.
     #[cfg(feature = "compress")]
     pub fn contents_utf8(&self) -> Option<String> {
-        String::from_utf8(self.contents()).ok()
+        String::from_utf8(
+            decompress(self.contents).expect("Embedded file could not be decompressed"),
+        )
+        .ok()
     }
 }
 

@@ -14,7 +14,7 @@ use std::{
 };
 
 #[cfg(feature = "compress")]
-use lz4_compression::compress::compress;
+use std::io::Write;
 
 /// Embed the contents of a directory in your crate.
 #[proc_macro]
@@ -80,6 +80,13 @@ fn expand_dir(root: &Path, path: &Path) -> proc_macro2::TokenStream {
     }
 }
 
+#[cfg(feature = "compress")]
+fn compress(data: &[u8]) -> Result<Vec<u8>, std::io::Error> {
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::best());
+    encoder.write_all(data)?;
+    encoder.finish()
+}
+
 fn expand_file(root: &Path, path: &Path) -> proc_macro2::TokenStream {
     let abs = path
         .canonicalize()
@@ -88,7 +95,8 @@ fn expand_file(root: &Path, path: &Path) -> proc_macro2::TokenStream {
     let contents = read_file(&abs);
 
     #[cfg(feature = "compress")]
-    let contents = compress(&contents);
+    let contents = compress(&contents)
+        .unwrap_or_else(|e| panic!("Failed to compress \"{}\": {}", path.display(), e));
 
     let literal = Literal::byte_string(&contents);
 

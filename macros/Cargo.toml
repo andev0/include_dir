@@ -17,9 +17,9 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "1"
 quote = "1"
-lz4-compression = { version = "0.7.0", optional = true }
+flate2 = { version = "1.0.35", optional = true }
 
 [features]
 nightly = []
 metadata = []
-compress = ["dep:lz4-compression"]
+compress = ["dep:flate2"]
